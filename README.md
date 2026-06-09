@@ -293,13 +293,53 @@ Difficulté : Moyenne (~2 heures)
 * last_backup_file : nom du dernier backup présent dans /backup
 * backup_age_seconds : âge du dernier backup
 
-*..**Déposez ici une copie d'écran** de votre réussite..*
 
+![alt text](image.png)
+![alt text](image-1.png)
 ---------------------------------------------------
 ### **Atelier 2 : Choisir notre point de restauration**  
 Aujourd’hui nous restaurobs “le dernier backup”. Nous souhaitons **ajouter la capacité de choisir un point de restauration**.
 
-*..Décrir ici votre procédure de restauration (votre runbook)..*  
+## Atelier 2 : Choisir notre point de restauration
+
+### Runbook — Restauration vers un point précis
+
+**Étape 1 — Lister les backups disponibles**
+```bash
+kubectl -n pra run debug-backup --rm -it --image=alpine \
+  --overrides='{"spec":{"containers":[{"name":"debug","image":"alpine",
+  "command":["ls","-lht","/backup"],"volumeMounts":[{"name":"backup",
+  "mountPath":"/backup"}]}],"volumes":[{"name":"backup",
+  "persistentVolumeClaim":{"claimName":"pra-backup"}}]}}'
+```
+
+**Étape 2 — Choisir le fichier de backup voulu et l'indiquer dans le YAML**
+```bash
+# Editer RESTORE_FILE dans pra/50-job-restore.yaml
+# Remplacer value: "" par value: "nom_du_fichier.db"
+```
+
+**Étape 3 — Arrêter l'application et supprimer l'ancien job**
+```bash
+kubectl -n pra scale deployment flask --replicas=0
+kubectl -n pra delete job sqlite-restore --ignore-not-found
+```
+
+**Étape 4 — Lancer la restauration**
+```bash
+kubectl apply -f pra/50-job-restore.yaml
+```
+
+**Étape 5 — Redémarrer l'application**
+```bash
+kubectl -n pra scale deployment flask --replicas=1
+kubectl -n pra port-forward svc/flask 8080:80 >/tmp/web.log 2>&1 &
+```
+
+**Étape 6 — Vérifier la restauration**
+```bash
+curl http://localhost:8080/consultation
+```  
   
 ---------------------------------------------------
 Evaluation

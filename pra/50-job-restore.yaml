@@ -13,8 +13,16 @@ spec:
           command: ["/bin/sh","-c"]
           args:
             - |
-              LATEST=$(ls -t /backup/*.db | head -1)
-              cp $LATEST /data/app.db
+              if [ -n "$RESTORE_FILE" ]; then
+                TARGET="/backup/$RESTORE_FILE"
+              else
+                TARGET=$(ls -t /backup/*.db | head -1)
+              fi
+              echo "Restauration depuis : $TARGET"
+              cp $TARGET /data/app.db
+          env:
+            - name: RESTORE_FILE
+              value: ""
           volumeMounts:
             - name: data
               mountPath: /data

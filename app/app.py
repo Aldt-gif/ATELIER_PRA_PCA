@@ -87,7 +87,38 @@ def count():
     conn.close()
 
     return jsonify(count=n)
+@app.get("/status")
+def status():
+    init_db()
+    # Count des événements en base
+    conn = get_conn()
+    cur = conn.execute("SELECT COUNT(*) FROM events")
+    n = cur.fetchone()[0]
+    conn.close()
 
+    # Dernier backup dans /backup
+    backup_dir = "/backup"
+    last_backup_file = None
+    backup_age_seconds = None
+
+    try:
+        files = sorted(
+            [f for f in os.listdir(backup_dir) if os.path.isfile(os.path.join(backup_dir, f))],
+            key=lambda f: os.path.getmtime(os.path.join(backup_dir, f))
+        )
+        if files:
+            last_file = files[-1]
+            last_backup_file = last_file
+            mtime = os.path.getmtime(os.path.join(backup_dir, last_file))
+            backup_age_seconds = int(datetime.utcnow().timestamp() - mtime)
+    except FileNotFoundError:
+        last_backup_file = "repertoire /backup introuvable"
+
+    return jsonify(
+        count=n,
+        last_backup_file=last_backup_file,
+        backup_age_seconds=backup_age_seconds
+    )
 # ---------- Main ----------
 if __name__ == "__main__":
     init_db()
