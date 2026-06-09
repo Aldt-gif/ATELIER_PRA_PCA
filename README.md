@@ -231,27 +231,57 @@ Faites preuve de pédagogie et soyez clair dans vos explications et procedures d
 **Exercice 1 :**  
 Quels sont les composants dont la perte entraîne une perte de données ?  
   
-*..Répondez à cet exercice ici..*
+La perte de données survient uniquement si le PVC pra-data est supprimé ou corrompu. C'est lui qui stocke la base SQLite en dehors du pod.
 
 **Exercice 2 :**  
 Expliquez nous pourquoi nous n'avons pas perdu les données lors de la supression du PVC pra-data  
   
-*..Répondez à cet exercice ici..*
+Parce qu'un CronJob Kubernetes sauvegarde automatiquement la base SQLite toutes les minutes depuis le PVC pra-data vers le PVC pra-backup.
 
 **Exercice 3 :**  
 Quels sont les RTO et RPO de cette solution ?  
   
-*..Répondez à cet exercice ici..*
+RPO (Recovery Point Objective) — jusqu'où remonte-t-on dans le temps lors d'une restauration ?
+Le CronJob tourne toutes les minutes. Dans le pire cas, on perd les données ajoutées dans la minute précédant le sinistre.
+→ RPO ≈ 1 minute
+RTO (Recovery Time Objective) — combien de temps pour que le service soit à nouveau opérationnel ?
 
 **Exercice 4 :**  
 Pourquoi cette solution (cet atelier) ne peux pas être utilisé dans un vrai environnement de production ? Que manque-t-il ?   
   
-*..Répondez à cet exercice ici..*
+1. Stockage local non répliqué — Les PVC pra-data et pra-backup sont stockés sur le même nœud K3d (hostPath). Si le nœud physique tombe, les deux volumes sont perdus en même temps. Il n'y a aucune redondance géographique.
+2. Single point of failure — Un seul pod applicatif, un seul nœud master. Aucune haute disponibilité.
+3. Restauration 100% manuelle — Il n'existe pas de procédure automatique de failover. Un opérateur doit intervenir manuellement, ce qui allonge le RTO.
+4. Pas de monitoring ni d'alerting — Aucun système ne détecte automatiquement un sinistre et ne déclenche la restauration.
+5. SQLite n'est pas adapté à la production — SQLite ne supporte pas les accès concurrents multi-pods et ne peut pas être répliqué nativement.
+6. Sauvegardes sur le même cluster — Si le cluster entier est perdu, les backups le sont aussi.
   
 **Exercice 5 :**  
 Proposez une archtecture plus robuste.   
   
-*..Répondez à cet exercice ici..*
+Stockage
+
+Remplacer SQLite par PostgreSQL avec réplication primaire/secondaire
+Utiliser un StorageClass réseau (Longhorn, Ceph, NFS) pour des PVC répliqués sur plusieurs nœuds
+Exporter les sauvegardes vers un stockage externe au cluster (S3, Azure Blob, NFS distant) pour résister à la perte totale du cluster
+
+Kubernetes
+
+Cluster multi-nœuds (minimum 3 masters + 3 workers) pour la haute disponibilité
+Pod Disruption Budget et replicas ≥ 2 pour le déploiement Flask
+Liveness et Readiness probes pour la détection automatique des défaillances
+
+Sauvegarde & Restauration
+
+Outil dédié comme Velero pour les sauvegardes complètes du cluster (PVC + ressources K8s)
+Sauvegardes vers un site distant (multi-zone ou multi-région)
+Procédures de restauration testées et automatisées (runbook validé régulièrement)
+
+Monitoring
+
+Prometheus + Grafana pour surveiller l'état des pods, PVC et jobs
+Alertmanager pour notifier en cas de sinistre
+Tableau de bord dédié au suivi du RPO/RTO en temps réel
 
 ---------------------------------------------------
 Séquence 6 : Ateliers  
